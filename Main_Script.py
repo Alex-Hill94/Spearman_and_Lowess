@@ -1,10 +1,10 @@
 import h5py as h5
 import numpy as np
 import matplotlib.pyplot as plt
-from moving_spearman import spearman as SP
+from spearman import get_moving_spearman_rank as SP
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from paul_tol.paul_col import *
-from paul_tol.paul_tol_colours import *
+from paul_col import *
+from paul_tol_colours import *
 from scipy import stats
 from pylab import rc, Line2D
 
@@ -28,11 +28,11 @@ class Plot_SP_Rank():
         ###Computes the Spearman Rank coefficient for given x, y and z values. Futher computes
         ###the residuals of the z value to colour data points by
 
+        print('Computing Spearman Rank')
+
         x, y, z = self.xs, self.ys, self.zs
         sorts = np.argsort(x)
         self.X, self.Y, self.Z = x[sorts], y[sorts], z[sorts] # Ordered x, y and z values
-
-        print(sum(np.isnan(self.zs)) + sum(np.isnan(self.xs)))
 
         L_z = lowess(endog = self.zs, exog = self.xs, return_sorted = True, frac = frac, it = 10)
         self.L_z = L_z
@@ -41,7 +41,7 @@ class Plot_SP_Rank():
         L_y = lowess(endog = self.ys, exog = self.xs, return_sorted = True, frac = frac, it = 10)
         y_residual = self.Y - L_y[:,1]
         self.L_y = L_y
-        centres, moving_rank, moving_pvalue = SP.get_moving_spearman_rank(self.X, y_residual, self.z_residual_plot, window_sizes=window_sizes, window_steps=window_steps, transition_points=transition_points)
+        centres, moving_rank, moving_pvalue = SP(self.X, y_residual, self.z_residual_plot, window_sizes=window_sizes, window_steps=window_steps, transition_points=transition_points)
 
         self.centres, self.moving_rank, self.moving_pvalue = centres, moving_rank, moving_pvalue
 
@@ -262,19 +262,35 @@ class Plot_SP_Rank():
 
 
 
-path = h5.File()
+if __name__ == '__main__':
+    path = 'save_data.hdf5'
+
+    u = h5.File(path, 'r')
+
+    XS = u['XS'][()]
+    YS = u['YS'][()]
+    ZS = u['ZS'][()]
+    u.close()
+
+    fcgm_label = '$f_{\mathrm{CGM}}/(\Omega_{b}/\Omega_0)$'
+    m2_label = '$\mathrm{log_{10}}(M_{200}) [\mathrm{M_{\odot}}]$'
+    del_z_05_label = '$<\\Delta\ \\mathrm{log}_{10}(1 + z_{1/2})>$'
+
+    rands = np.random.rand(len(XS))
+
+    reduce = 1.
+
+    XS = XS[rands < reduce]
+    YS = YS[rands < reduce]
+    ZS = ZS[rands < reduce]
 
 
-fcgm_label = '$f_{\mathrm{CGM}}/(\Omega_{b}/\Omega_0)$'
-m2_label = '$\mathrm{log_{10}}(M_{200}) [\mathrm{M_{\odot}}]$'
-del_z_05_label = '$<\\Delta\ \\mathrm{log}_{10}(1 + z_{1/2})>$'
 
-WINDOW_SIZES = [500, 200]
-WINDOW_STEPS = [100,  50]
-TRANSITION_POINT = 13.5
+    WINDOW_SIZES = [50*reduce, 20*reduce]
+    WINDOW_STEPS = [10*reduce,  5*reduce]
+    TRANSITION_POINT = 13.5
 
 
-
-P = Plot_SP_Rank(xs = XS, ys = YS, zs = ZS)
-P.compute_sp(window_sizes=WINDOW_SIZES, window_steps= WINDOW_STEPS, transition_points=[TRANSITION_POINT,], frac = 0.005)
-P.plot_me(x_lab = m2_label, y_lab = fcgm_label, z_lab = del_z_05_label, save = True, lab = None, file_name = 'corr_fcgm_zhalf.pdf', hist = True, nbin = 100, FS = 20)
+    P = Plot_SP_Rank(xs = XS, ys = YS, zs = ZS)
+    P.compute_sp(window_sizes=WINDOW_SIZES, window_steps= WINDOW_STEPS, transition_points=[TRANSITION_POINT,], frac = 0.005)
+    P.plot_me(x_lab = m2_label, y_lab = fcgm_label, z_lab = del_z_05_label, save = True, lab = None, file_name = 'corr_fcgm_zhalf.pdf', hist = True, nbin = 100, FS = 20)
